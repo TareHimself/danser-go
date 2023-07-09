@@ -2,6 +2,13 @@ package states
 
 import (
 	"fmt"
+	"log"
+	"math"
+	"math/rand"
+	"path/filepath"
+	"runtime"
+	"strconv"
+
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/wieku/danser-go/app/audio"
 	"github.com/wieku/danser-go/app/beatmap"
@@ -32,12 +39,6 @@ import (
 	"github.com/wieku/danser-go/framework/math/vector"
 	"github.com/wieku/danser-go/framework/qpc"
 	"github.com/wieku/danser-go/framework/statistic"
-	"log"
-	"math"
-	"math/rand"
-	"path/filepath"
-	"runtime"
-	"strconv"
 )
 
 const windowsOffset = 15
@@ -294,16 +295,18 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 	player.trySetupFail()
 
-	preempt := math.Min(1800, beatMap.Diff.Preempt)
+	// preempt := math.Min(1800, beatMap.Diff.Preempt)
 
 	skipTime := 0.0
 	if settings.SKIP {
 		skipTime = beatMap.HitObjects[0].GetStartTime()
 	}
 
-	skipTime = math.Max(skipTime, settings.START*1000) - preempt
+	// skipTime = math.Max(skipTime, settings.START*1000) - preempt
 
-	beatmapStart := math.Max(beatMap.HitObjects[0].GetStartTime(), settings.START*1000) - preempt
+	skipTime = beatMap.HitObjects[0].GetStartTime()
+	// beatmapStart := math.Max(beatMap.HitObjects[0].GetStartTime(), settings.START*1000) - preempt
+	beatmapStart := beatMap.HitObjects[0].GetStartTime()
 	beatmapEnd := beatMap.HitObjects[len(beatMap.HitObjects)-1].GetEndTime() + float64(beatMap.Diff.Hit50)
 
 	if !math.IsInf(settings.END, 1) {
@@ -349,12 +352,12 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 
 		player.lateStart = true
 	} else {
-		startOffset = -preempt
+		// startOffset = -preempt
 	}
 
 	player.startPointE = startOffset
 
-	startOffset += -settings.Playfield.LeadInHold * 1000
+	// startOffset += -settings.Playfield.LeadInHold * 1000
 
 	player.dimGlider.AddEvent(startOffset-500, startOffset, 1.0-settings.Playfield.Background.Dim.Intro)
 	player.blurGlider.AddEvent(startOffset-500, startOffset, settings.Playfield.Background.Blur.Values.Intro)
@@ -421,14 +424,14 @@ func NewPlayer(beatMap *beatmap.BeatMap) *Player {
 	// See https://github.com/Wieku/danser-go/issues/121
 	player.musicPlayer.AddSilence(math.Max(0, player.MapEnd/1000-player.musicPlayer.GetLength()))
 
-	if settings.Playfield.SeizureWarning.Enabled {
-		am := math.Max(1000, settings.Playfield.SeizureWarning.Duration*1000)
-		startOffset -= am
-		player.epiGlider.AddEvent(startOffset, startOffset+500, 1.0)
-		player.epiGlider.AddEvent(startOffset+am-500, startOffset+am, 0.0)
-	}
+	// if settings.Playfield.SeizureWarning.Enabled {
+	// 	am := math.Max(1000, settings.Playfield.SeizureWarning.Duration*1000)
+	// 	startOffset -= am
+	// 	player.epiGlider.AddEvent(startOffset, startOffset+500, 1.0)
+	// 	player.epiGlider.AddEvent(startOffset+am-500, startOffset+am, 0.0)
+	// }
 
-	startOffset -= math.Max(settings.Playfield.LeadInTime*1000, 1000)
+	// startOffset -= math.Max(settings.Playfield.LeadInTime*1000, 1000)
 
 	player.startOffset = startOffset
 	player.progressMsF = startOffset

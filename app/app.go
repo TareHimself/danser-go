@@ -5,6 +5,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"math"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
 	"github.com/dustin/go-humanize"
 	"github.com/faiface/mainthread"
 	"github.com/go-gl/gl/v3.3-core/gl"
@@ -41,15 +51,6 @@ import (
 	"github.com/wieku/danser-go/framework/statistic"
 	"github.com/wieku/danser-go/framework/util"
 	"github.com/wieku/rplpa"
-	"io"
-	"io/ioutil"
-	"log"
-	"math"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"time"
 )
 
 const (
@@ -84,6 +85,10 @@ var preciseProgress bool
 
 var monitorHz int
 
+var latestBeatmap *beatmap.BeatMap
+
+var latestReplay *rplpa.Replay
+
 func run() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -91,7 +96,7 @@ func run() {
 			closeHandler(err, stackTrace)
 		}
 	}()
-
+	
 	mainthread.Call(func() {
 		id := flag.Int64("id", -1, "Specify the beatmap id. Overrides other beatmap search flags")
 
@@ -214,6 +219,8 @@ func run() {
 			if rp.ReplayData == nil || len(rp.ReplayData) < 2 {
 				panic("Replay is missing input data")
 			}
+
+			latestReplay = rp
 
 			*md5 = rp.BeatmapMD5
 			*id = -1
@@ -504,6 +511,9 @@ func run() {
 		beatmap.ParseTimingPointsAndPauses(beatMap)
 		beatmap.ParseObjects(beatMap, false, true)
 		beatMap.LoadCustomSamples()
+
+		latestBeatmap = beatMap
+
 		player = states.NewPlayer(beatMap)
 
 		limiter = frame.NewLimiter(int(settings.Graphics.FPSCap))
@@ -521,6 +531,7 @@ func run() {
 func mainLoopRecord() {
 	count := int64(0)
 
+	
 	fps := float64(settings.Recording.FPS)
 	audioFPS := 1000.0
 
@@ -609,9 +620,46 @@ func mainLoopRecord() {
 		}
 	}
 
+	var saveDir string
+
 	mainthread.Call(func() {
-		ffmpeg.StopFFmpeg()
+		saveDir = ffmpeg.StopFFmpeg()
 	})
+
+	type OsuAiDataEvent struct {
+		Diff	int64		`json:"diff"`
+		MouseX	float32		`json:"x"`
+		MouseY	float32		`json:"y"`
+		K1 		bool		`json:"k1"`
+		K2		bool		`json:"k2"`
+	}
+
+	type OsuAiDataBreak struct {
+		Start	float64		`json:"start"`
+		End		float64		`json:"end"`
+	}
+
+	type OsuAiData struct {
+		Start       float64        				`json:"start"`
+		Events     	[]OsuAiDataEvent    	`json:"events"`
+		Breaks 		[]OsuAiDataBreak    	`json:"breaks"`
+	}
+
+	dataToSave := OsuAiData{latestBeatmap.HitObjects[0].GetStartTime(),[]OsuAiDataEvent{},[]OsuAiDataBreak{}}
+
+	for i := 0; i < len(latestReplay.ReplayData); i++ {
+        current := latestReplay.ReplayData[i]
+		dataToSave.Events = append(dataToSave.Events, OsuAiDataEvent{current.Time,current.MouseX,current.MouseY,current.KeyPressed.Key1 || current.KeyPressed.LeftClick,current.KeyPressed.Key2 || current.KeyPressed.RightClick})
+    }
+
+	for i := 0; i < len(latestBeatmap.Pauses); i++ {
+        current := latestBeatmap.Pauses[i]
+		dataToSave.Breaks = append(dataToSave.Breaks, OsuAiDataBreak{current.GetStartTime(),current.GetEndTime()})
+    }
+
+	file, _ := json.MarshalIndent(dataToSave, "", " ")
+
+	_ = ioutil.WriteFile(saveDir, file, 0644)
 }
 
 func mainLoopSS() {

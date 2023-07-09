@@ -2,14 +2,15 @@ package ffmpeg
 
 import (
 	"fmt"
-	"github.com/wieku/danser-go/app/settings"
-	"github.com/wieku/danser-go/framework/files"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/wieku/danser-go/app/settings"
+	"github.com/wieku/danser-go/framework/files"
 )
 
 var ffmpegExec string
@@ -95,7 +96,7 @@ func StartFFmpeg(fps, _w, _h int, audioFPS float64, _output string) {
 	startAudio(audioFPS)
 }
 
-func StopFFmpeg() {
+func StopFFmpeg() (string) {
 	log.Println("Finishing rendering...")
 
 	stopVideo()
@@ -103,10 +104,10 @@ func StopFFmpeg() {
 
 	log.Println("Ffmpeg finished.")
 
-	combine()
+	return combine()
 }
 
-func combine() {
+func combine() (string) {
 	options := []string{
 		"-y",
 		"-i", filepath.Join(settings.Recording.GetOutputDir(), output+"_temp", "video."+settings.Recording.Container),
@@ -144,6 +145,8 @@ func combine() {
 	}
 
 	cleanup()
+
+	return filepath.Join(settings.Recording.GetOutputDir(), output+".json")
 }
 
 func cleanup() {
