@@ -25,6 +25,7 @@ import (
 	"github.com/wieku/danser-go/app/audio"
 	"github.com/wieku/danser-go/app/beatmap"
 	difficulty2 "github.com/wieku/danser-go/app/beatmap/difficulty"
+	"github.com/wieku/danser-go/app/beatmap/objects"
 	camera2 "github.com/wieku/danser-go/app/bmath/camera"
 	"github.com/wieku/danser-go/app/database"
 	"github.com/wieku/danser-go/app/discord"
@@ -639,13 +640,39 @@ func mainLoopRecord() {
 		End		float64		`json:"end"`
 	}
 
+	type OsuAiDataObject struct {
+		Start	float64		`json:"start"`
+		End		float64		`json:"end"`
+		Duration float64	`json:"duration"`
+		Type	string		`json:"type"`
+	}
+
 	type OsuAiData struct {
-		Start       float64        				`json:"start"`
+		Objects       []OsuAiDataObject      				`json:"objects"`
 		Events     	[]OsuAiDataEvent    	`json:"events"`
 		Breaks 		[]OsuAiDataBreak    	`json:"breaks"`
 	}
 
-	dataToSave := OsuAiData{latestBeatmap.HitObjects[0].GetStartTime(),[]OsuAiDataEvent{},[]OsuAiDataBreak{}}
+	dataToSave := OsuAiData{[]OsuAiDataObject{},[]OsuAiDataEvent{},[]OsuAiDataBreak{}}
+
+	for i := 0; i < len(latestBeatmap.HitObjects); i++ {
+        current := latestBeatmap.HitObjects[i]
+		objectType := ""
+		if(current.GetType() == objects.CIRCLE){
+			objectType = "circle"
+		}
+
+		if(current.GetType() == objects.SPINNER){
+			objectType = "spinner"
+		}
+
+		if(current.GetType() == objects.SLIDER){
+			objectType = "slider"
+		}
+
+
+		dataToSave.Objects = append(dataToSave.Objects, OsuAiDataObject{current.GetStartTime(),current.GetEndTime(),current.GetDuration(),objectType})
+    }
 
 	for i := 0; i < len(latestReplay.ReplayData); i++ {
         current := latestReplay.ReplayData[i]
